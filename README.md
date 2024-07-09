@@ -1,5 +1,8 @@
 # vuefinder-wsgi
 
+[![PyPI version](https://img.shields.io/pypi/v/vuefinder-wsgi)](https://pypi.org/project/vuefinder-wsgi/)
+[![LICENSE](https://img.shields.io/github/license/abichinger/vuefinder-wsgi)](https://github.com/abichinger/vuefinder-wsgi/blob/main/LICENSE)
+
 WSGI app for [vuefinder](https://github.com/n1crack/vuefinder). This is a vuefinder backend to access [PyFilesystem2](https://github.com/pyfilesystem/pyfilesystem2) filesystems.
 
 # Unimplemented
@@ -21,7 +24,7 @@ from fs.memoryfs import MemoryFS
 from werkzeug.serving import run_simple
 
 if __name__ == "__main__":
-    # Create a Memory Filesystem
+    # Initialize filesystem
     memfs = MemoryFS()
     fill_fs(
         memfs,
