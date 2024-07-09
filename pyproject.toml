@@ -1,0 +1,23 @@
+[project]
+name = "vuefinder-wsgi"
+authors = [
+    { name = "Andreas Bichinger", email = "andreas.bichinger@gmail.com" },
+]
+description = "WSGI app to use PyFilesystem2 with vuefinder"
+keywords = ["vuefinder", "pyfilesystem", "file explorer"]
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = ["Werkzeug", "fs"]
+
+[project.urls]
+Homepage = "https://github.com/abichinger/vuefinder-wsgi"
+Issues = "https://github.com/abichinger/vuefinder-wsgi/issues"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
