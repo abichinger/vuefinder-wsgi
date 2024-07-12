@@ -135,7 +135,7 @@ class VuefinderApp(object):
             }
         )
 
-    def _preview(self, request: Request) -> Response:
+    def _download(self, request: Request) -> Response:
         fs, path = self.delegate(request)
         info = fs.getinfo(path, ["basic", "details"])
 
@@ -150,6 +150,15 @@ class VuefinderApp(object):
             },
         )
 
+    def _preview(self, request: Request) -> Response:
+        response = self._download(request)
+        response.headers.update(
+            {
+                "Content-Disposition": "inline",
+            }
+        )
+        return response
+
     def _subfolders(self, request: Request) -> Response:
         adapter = self._get_adapter(request)
         fs, path = self.delegate(request)
@@ -163,9 +172,6 @@ class VuefinderApp(object):
                 ]
             }
         )
-
-    def _download(self, request: Request) -> Response:
-        return self._preview(request)
 
     def _search(self, request: Request) -> Response:
         filter = request.args.get("filter", None)
