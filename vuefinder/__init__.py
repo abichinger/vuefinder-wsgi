@@ -93,6 +93,10 @@ class VuefinderApp(object):
         del self._adapters[index]
         del self._adapterIndex[key]
 
+    def clear(self):
+        self._adapters = []
+        self._adapterIndex = []
+
     def _get_adapter(self, request: Request) -> Adapter:
         key = request.args.get("adapter")
         index = self._adapterIndex.get(key, 0)
