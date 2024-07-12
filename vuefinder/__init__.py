@@ -5,6 +5,7 @@ from werkzeug.exceptions import BadRequest
 from fs.base import FS
 from fs.info import Info
 from fs.subfs import SubFS
+from fs import errors
 from fs import path as fspath
 import json
 import mimetypes
@@ -24,13 +25,13 @@ def fill_fs(fs: FS, d: dict):
             fill_fs(SubFS(fs, k), v)
 
 
-def json_response(response) -> Response:
+def json_response(response, status: int = 200) -> Response:
     payload = json.dumps(response)
     return Response(
         response=payload,
         mimetype="application/json",
         headers={"content-length": len(payload)},
-        status=200,
+        status=status,
     )
 
 
@@ -259,7 +260,12 @@ class VuefinderApp(object):
         if endpoint not in self.endpoints:
             raise BadRequest()
 
-        response = self.endpoints[endpoint](request)
+        response = None
+        try:
+            response = self.endpoints[endpoint](request)
+        except errors.ResourceReadOnly as exc:
+            response = json_response({"message": str(exc), "status": False}, 400)
+
         response.headers.extend(headers)
         return response
 

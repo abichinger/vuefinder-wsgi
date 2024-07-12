@@ -1,5 +1,6 @@
 from vuefinder import VuefinderApp, fill_fs
 from fs.memoryfs import MemoryFS
+from fs.wrap import WrapReadOnly
 from werkzeug.serving import run_simple
 
 if __name__ == "__main__":
@@ -20,5 +21,5 @@ if __name__ == "__main__":
 
     app = VuefinderApp(enable_cors=True)
     app.add_fs("local", m1)
-    app.add_fs("media", m2)
+    app.add_fs("media", WrapReadOnly(m2))
     run_simple("127.0.0.1", 8005, app, use_debugger=True, use_reloader=True)
