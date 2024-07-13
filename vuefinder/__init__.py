@@ -1,6 +1,4 @@
 from werkzeug.wrappers import Request, Response
-from werkzeug.middleware.shared_data import SharedDataMiddleware
-from werkzeug.routing import Map, Rule
 from werkzeug.exceptions import BadRequest
 from fs.base import FS
 from fs.info import Info
@@ -10,6 +8,7 @@ from fs import path as fspath
 import json
 import mimetypes
 from shutil import copyfileobj
+from collections import OrderedDict
 
 
 def fill_fs(fs: FS, d: dict):
@@ -81,27 +80,27 @@ class VuefinderApp(object):
             "POST:unarchive": self._unarchive,
             "POST:save": self._save,
         }
-        self._adapters: list[Adapter] = []
-        self._adapterIndex: dict[str, int] = {}
+        self._default: Adapter | None = None
+        self._adapters: dict[str, FS] = OrderedDict()
         self.enable_cors = enable_cors
 
     def add_fs(self, key: str, fs: FS):
-        self._adapters.append(Adapter(key, fs))
-        self._adapterIndex[key] = len(self._adapters) - 1
+        self._adapters[key] = fs
+        if len(self._adapters) == 1:
+            self._default = Adapter(key, fs)
 
     def remove_fs(self, key: str):
-        index = self._adapterIndex[key]
-        del self._adapters[index]
-        del self._adapterIndex[key]
+        self._adapters.pop(key, None)
 
     def clear(self):
-        self._adapters = []
-        self._adapterIndex = []
+        self._adapters = OrderedDict()
 
     def _get_adapter(self, request: Request) -> Adapter:
         key = request.args.get("adapter")
-        index = self._adapterIndex.get(key, 0)
-        return self._adapters[index]
+        return Adapter(key, self._adapters.get(key, self._default.fs))
+
+    def _get_storages(self):
+        return list(self._adapters.keys())
 
     def _get_full_path(self, request: Request) -> str:
         return request.args.get("path", self._get_adapter(request).key + "://")
@@ -127,7 +126,7 @@ class VuefinderApp(object):
         return json_response(
             {
                 "adapter": adapter.key,
-                "storages": [a.key for a in self._adapters],
+                "storages": self._get_storages(),
                 "dirname": self._get_full_path(request),
                 "files": [
                     to_vuefinder_resource(adapter.key, path, info) for info in infos
