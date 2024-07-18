@@ -123,6 +123,8 @@ class VuefinderApp(object):
         if filter:
             infos = [info for info in infos if filter in info.name]
 
+        infos.sort(key=lambda i: ("0_" if i.is_dir else "1_") + i.name.lower())
+
         return json_response(
             {
                 "adapter": adapter.key,
