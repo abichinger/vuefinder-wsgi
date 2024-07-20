@@ -1,3 +1,5 @@
+from http import HTTPStatus
+from typing import Iterable, Mapping
 from werkzeug.wrappers import Request, Response
 from werkzeug.exceptions import BadRequest
 from fs.base import FS
@@ -152,13 +154,18 @@ class VuefinderApp(object):
         )
 
     def _preview(self, request: Request) -> Response:
-        response = self._download(request)
-        response.headers.update(
-            {
-                "Content-Disposition": "inline",
-            }
+        fs, path = self.delegate(request)
+        info = fs.getinfo(path, ["basic", "details"])
+
+        return Response(
+            fs.open(path, "rb"),
+            direct_passthrough=True,
+            mimetype=mimetypes.guess_type(info.name)[0] or "application/octet-stream",
+            headers={
+                "Content-Length": info.size,
+                "Content-Disposition": f'inline; filename="{info.name}"',
+            },
         )
-        return response
 
     def _subfolders(self, request: Request) -> Response:
         adapter = self._get_adapter(request)
