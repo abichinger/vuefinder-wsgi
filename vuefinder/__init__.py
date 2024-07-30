@@ -36,11 +36,6 @@ def json_response(response, status: int = 200) -> Response:
     )
 
 
-def listinfo(fs: FS, path: str, namespaces=["basic", "details"]) -> list[Info]:
-    items = fs.listdir(path)
-    return [fs.getinfo(fspath.join(path, item), namespaces) for item in items]
-
-
 def to_vuefinder_resource(storage: str, path: str, info: Info) -> dict:
     if path == "/":
         path = ""
@@ -120,7 +115,7 @@ class VuefinderApp(object):
     def _index(self, request: Request, filter: str | None = None) -> Response:
         adapter = self._get_adapter(request)
         fs, path = self.delegate(request)
-        infos = listinfo(fs, path)
+        infos = list(fs.scandir(path, namespaces=["basic", "details"]))
 
         if filter:
             infos = [info for info in infos if filter in info.name]
@@ -170,7 +165,7 @@ class VuefinderApp(object):
     def _subfolders(self, request: Request) -> Response:
         adapter = self._get_adapter(request)
         fs, path = self.delegate(request)
-        infos = listinfo(fs, path)
+        infos = fs.scandir(path, namespaces=["basic", "details"])
         return json_response(
             {
                 "folders": [
