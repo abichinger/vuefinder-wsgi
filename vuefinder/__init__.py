@@ -232,9 +232,7 @@ class VuefinderApp(object):
     def _upload(self, request: Request) -> Response:
         fs, path = self.delegate(request)
         for fsrc in request.files.values():
-            with fs.open(
-                fspath.join(path, request.form.get("name", fsrc.name)), "wb"
-            ) as fdst:
+            with fs.open(fspath.join(path, request.form.get("name", "")), "wb") as fdst:
                 copyfileobj(fsrc.stream, fdst)
 
         return json_response("ok")
