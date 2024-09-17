@@ -69,6 +69,7 @@ class VuefinderApp(object):
             "GET:preview": self._preview,
             "GET:subfolders": self._subfolders,
             "GET:download": self._download,
+            "GET:download_archive": self._download_archive,
             "GET:search": self._search,
             "POST:newfolder": self._newfolder,
             "POST:newfile": self._newfile,
@@ -246,40 +247,65 @@ class VuefinderApp(object):
 
         return json_response("ok")
 
-    def _write_zip(self, dst: io.IOBase, fs: FS, paths: list[str], base="/"):
+    def _write_zip(self, zip: FS, fs: FS, paths: list[str], base="/"):
         # Docs: https://docs.pyfilesystem.org/en/latest/reference/zipfs.html#fs.zipfs.ZipFS
-        zip: FS
-        with ZipFS(dst, write=True) as zip:
-            while len(paths) > 0:
-                path = paths.pop()
-                dst_path = fspath.relativefrom(base, path)
-                if fs.isdir(path):
-                    zip.makedir(dst_path)
-                    paths = [
-                        fspath.join(path, name) for name in fs.listdir(path)
-                    ] + paths
-                else:
-                    with fs.openbin(path) as f:
-                        zip.writefile(dst_path, f)
 
-    def _archive(self, request: Request) -> Response:
-        payload = request.get_json()
+        while len(paths) > 0:
+            path = paths.pop()
+            dst_path = fspath.relativefrom(base, path)
+            if fs.isdir(path):
+                zip.makedir(dst_path)
+                paths = [fspath.join(path, name) for name in fs.listdir(path)] + paths
+            else:
+                with fs.openbin(path) as f:
+                    zip.writefile(dst_path, f)
+
+    def _get_filename(self, payload: dict, param: str = "name", ext: str = "") -> str:
         name = payload.get("name", None)
         if name is None or not is_valid_filename(name, platform="universal"):
             raise BadRequest("Invalid archive name")
 
-        if fspath.splitext(name)[1] != ".zip":
-            name = name + ".zip"
+        if ext.startswith(".") and fspath.splitext(name)[1] != ext:
+            name = name + ext
+
+        return name
+
+    def _archive(self, request: Request) -> Response:
+        payload = request.get_json()
+        name = self._get_filename(payload, ext=".zip")
 
         fs, path = self.delegate(request)
-        archive_path = fspath.join(path, name)
         items: list[dict] = payload.get("items", [])
         paths = [self._fs_path(item["path"]) for item in items if "path" in item]
+        archive_path = fspath.join(path, name)
 
         with fs.openbin(archive_path, mode="w") as f:
-            self._write_zip(f, fs, paths, path)
+            with ZipFS(f, write=True) as zip:
+                self._write_zip(zip, fs, paths, path)
 
         return self._index(request)
+
+    def _download_archive(self, request: Request):
+        name = self._get_filename(request.args, ext=".zip")
+
+        fs, path = self.delegate(request)
+        items: list[dict] = json.loads(request.args.get("items", "[]"))
+        paths = [self._fs_path(item["path"]) for item in items if "path" in item]
+
+        stream = io.BytesIO()
+
+        with ZipFS(stream, write=True) as zip:
+            self._write_zip(zip, fs, paths, path)
+
+        return Response(
+            stream.getvalue(),
+            direct_passthrough=True,
+            mimetype="application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="{name}"',
+                "Content-Type": "application/zip",
+            },
+        )
 
     def _unarchive(self, request: Request) -> Response:
         raise "unimplemented"
