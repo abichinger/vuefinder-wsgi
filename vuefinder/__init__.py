@@ -5,12 +5,15 @@ from werkzeug.exceptions import BadRequest
 from fs.base import FS
 from fs.info import Info
 from fs.subfs import SubFS
+from fs.zipfs import ZipFS
 from fs import errors
 from fs import path as fspath
 import json
 import mimetypes
 from shutil import copyfileobj
 from collections import OrderedDict
+from pathvalidate import is_valid_filename
+import io
 
 
 def fill_fs(fs: FS, d: dict):
@@ -243,8 +246,40 @@ class VuefinderApp(object):
 
         return json_response("ok")
 
+    def _write_zip(self, dst: io.IOBase, fs: FS, paths: list[str], base="/"):
+        # Docs: https://docs.pyfilesystem.org/en/latest/reference/zipfs.html#fs.zipfs.ZipFS
+        zip: FS
+        with ZipFS(dst, write=True) as zip:
+            while len(paths) > 0:
+                path = paths.pop()
+                dst_path = fspath.relativefrom(base, path)
+                if fs.isdir(path):
+                    zip.makedir(dst_path)
+                    paths = [
+                        fspath.join(path, name) for name in fs.listdir(path)
+                    ] + paths
+                else:
+                    with fs.openbin(path) as f:
+                        zip.writefile(dst_path, f)
+
     def _archive(self, request: Request) -> Response:
-        raise "unimplemented"
+        payload = request.get_json()
+        name = payload.get("name", None)
+        if name is None or not is_valid_filename(name, platform="universal"):
+            raise BadRequest("Invalid archive name")
+
+        if fspath.splitext(name)[1] != ".zip":
+            name = name + ".zip"
+
+        fs, path = self.delegate(request)
+        archive_path = fspath.join(path, name)
+        items: list[dict] = payload.get("items", [])
+        paths = [self._fs_path(item["path"]) for item in items if "path" in item]
+
+        with fs.openbin(archive_path, mode="w") as f:
+            self._write_zip(f, fs, paths, path)
+
+        return self._index(request)
 
     def _unarchive(self, request: Request) -> Response:
         raise "unimplemented"
