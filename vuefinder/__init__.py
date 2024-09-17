@@ -156,7 +156,7 @@ class VuefinderApp(object):
         info = fs.getinfo(path, ["basic", "details"])
 
         headers = {
-            "Content-Disposition": f'attachment; filename="{info.name}"',
+            "Content-Disposition": f'inline; filename="{info.name}"',
         }
         if info.size is not None:
             headers["Content-Length"] = info.size
