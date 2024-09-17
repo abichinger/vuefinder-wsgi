@@ -13,7 +13,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = ["Werkzeug", "fs"]
-version = "1.2.3"
+version = "1.2.4"
 
 [project.urls]
 Homepage = "https://github.com/abichinger/vuefinder-wsgi"
