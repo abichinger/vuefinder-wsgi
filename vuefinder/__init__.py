@@ -137,29 +137,35 @@ class VuefinderApp(object):
         fs, path = self.delegate(request)
         info = fs.getinfo(path, ["basic", "details"])
 
+        headers = {
+            "Content-Disposition": f'attachment; filename="{info.name}"',
+        }
+        if info.size is not None:
+            headers["Content-Length"] = info.size
+
         # CREDIT: https://stackoverflow.com/a/56184787/3140799
         return Response(
             fs.open(path, "rb"),
             direct_passthrough=True,
             mimetype="application/octet-stream",
-            headers={
-                "Content-Length": info.size,
-                "Content-Disposition": f'attachment; filename="{info.name}"',
-            },
+            headers=headers,
         )
 
     def _preview(self, request: Request) -> Response:
         fs, path = self.delegate(request)
         info = fs.getinfo(path, ["basic", "details"])
 
+        headers = {
+            "Content-Disposition": f'attachment; filename="{info.name}"',
+        }
+        if info.size is not None:
+            headers["Content-Length"] = info.size
+
         return Response(
             fs.open(path, "rb"),
             direct_passthrough=True,
             mimetype=mimetypes.guess_type(info.name)[0] or "application/octet-stream",
-            headers={
-                "Content-Length": info.size,
-                "Content-Disposition": f'inline; filename="{info.name}"',
-            },
+            headers=headers,
         )
 
     def _subfolders(self, request: Request) -> Response:
