@@ -277,6 +277,9 @@ class VuefinderApp(object):
         paths = [self._fs_path(item["path"]) for item in items if "path" in item]
         archive_path = fspath.join(path, name)
 
+        if fs.exists(archive_path):
+            raise BadRequest(f"Archive {archive_path} already exists")
+
         with fs.openbin(archive_path, mode="w") as f:
             with ZipFS(f, write=True) as zip:
                 self._write_zip(zip, fs, paths, path)
@@ -287,8 +290,8 @@ class VuefinderApp(object):
         name = self._get_filename(request.args, ext=".zip")
 
         fs, path = self.delegate(request)
-        items: list[dict] = json.loads(request.args.get("items", "[]"))
-        paths = [self._fs_path(item["path"]) for item in items if "path" in item]
+        paths: list[str] = json.loads(request.args.get("paths", "[]"))
+        paths = [self._fs_path(path) for path in paths]
 
         stream = io.BytesIO()
 
