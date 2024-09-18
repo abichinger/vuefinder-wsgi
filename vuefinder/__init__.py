@@ -6,8 +6,7 @@ from fs.base import FS
 from fs.info import Info
 from fs.subfs import SubFS
 from fs.zipfs import ZipFS
-from fs import errors
-from fs import path as fspath
+from fs import path as fspath, errors, copy, walk
 import json
 import mimetypes
 from shutil import copyfileobj
@@ -248,8 +247,7 @@ class VuefinderApp(object):
         return json_response("ok")
 
     def _write_zip(self, zip: FS, fs: FS, paths: list[str], base="/"):
-        # Docs: https://docs.pyfilesystem.org/en/latest/reference/zipfs.html#fs.zipfs.ZipFS
-
+        # ZipFS Docs: https://docs.pyfilesystem.org/en/latest/reference/zipfs.html#fs.zipfs.ZipFS
         while len(paths) > 0:
             path = paths.pop()
             dst_path = fspath.relativefrom(base, path)
@@ -308,7 +306,23 @@ class VuefinderApp(object):
         )
 
     def _unarchive(self, request: Request) -> Response:
-        raise "unimplemented"
+        fs, path = self.delegate(request)
+        archive_path = self._fs_path(request.get_json().get("item"))
+
+        with fs.openbin(archive_path) as zip_file:
+            with ZipFS(zip_file) as zip:
+                # check if any file already exists
+                walker = walk.Walker()
+                for file_path in walker.files(zip):
+                    dst_path = fspath.join(path, file_path)
+                    if fs.exists(dst_path):
+                        raise BadRequest(
+                            f"File {dst_path} would be overridden by unarchive"
+                        )
+
+                copy.copy_dir(zip, "/", fs, path)
+
+        return self._index(request)
 
     def _save(self, request: Request) -> Response:
         fs, path = self.delegate(request)
@@ -339,6 +353,8 @@ class VuefinderApp(object):
             response = self.endpoints[endpoint](request)
         except errors.ResourceReadOnly as exc:
             response = json_response({"message": str(exc), "status": False}, 400)
+        except BadRequest as exc:
+            response = json_response({"message": exc.description, "status": False}, 400)
 
         response.headers.extend(headers)
         return response
