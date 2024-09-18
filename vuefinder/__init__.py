@@ -317,7 +317,7 @@ class VuefinderApp(object):
                 # check if any file already exists
                 walker = walk.Walker()
                 for file_path in walker.files(zip):
-                    dst_path = fspath.join(path, file_path)
+                    dst_path = fspath.join(path, fspath.relpath(file_path))
                     if fs.exists(dst_path):
                         raise BadRequest(
                             f"File {dst_path} would be overridden by unarchive"
