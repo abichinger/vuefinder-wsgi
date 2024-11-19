@@ -45,7 +45,7 @@ def to_vuefinder_resource(storage: str, path: str, info: Info) -> dict:
         "type": "dir" if info.is_dir else "file",
         "path": f"{storage}:/{path}/{info.name}",
         "visibility": "public",
-        "last_modified": info.modified.timestamp(),
+        "last_modified": info.modified.timestamp() if info.modified else None,
         "mime_type": mimetypes.guess_type(info.name)[0],
         "extra_metadata": [],
         "basename": info.name,
