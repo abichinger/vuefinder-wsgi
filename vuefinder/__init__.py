@@ -1,5 +1,4 @@
-from http import HTTPStatus
-from typing import Iterable, Mapping
+from typing import Union
 from werkzeug.wrappers import Request, Response
 from werkzeug.exceptions import BadRequest
 from fs.base import FS
@@ -80,7 +79,7 @@ class VuefinderApp(object):
             "POST:unarchive": self._unarchive,
             "POST:save": self._save,
         }
-        self._default: Adapter | None = None
+        self._default: Union[Adapter, None] = None
         self._adapters: dict[str, FS] = OrderedDict()
         self.enable_cors = enable_cors
 
@@ -115,7 +114,7 @@ class VuefinderApp(object):
         path = self._get_full_path(request)
         return adapter.fs, self._fs_path(path)
 
-    def _index(self, request: Request, filter: str | None = None) -> Response:
+    def _index(self, request: Request, filter: Union[str, None] = None) -> Response:
         adapter = self._get_adapter(request)
         fs, path = self.delegate(request)
         infos = list(fs.scandir(path, namespaces=["basic", "details"]))
