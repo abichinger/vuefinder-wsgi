@@ -37,7 +37,9 @@ def json_response(response, status: int = 200) -> Response:
     )
 
 
-def to_vuefinder_resource(storage: str, path: str, info: Info) -> dict:
+def to_vuefinder_resource(
+    storage: str, path: str, info: Info, include_raw=False
+) -> dict:
     if path == "/":
         path = ""
     return {
@@ -46,11 +48,11 @@ def to_vuefinder_resource(storage: str, path: str, info: Info) -> dict:
         "visibility": "public",
         "last_modified": info.modified.timestamp() if info.modified else None,
         "mime_type": mimetypes.guess_type(info.name)[0],
-        "extra_metadata": [],
         "basename": info.name,
         "extension": info.name.split(".")[-1],
         "storage": storage,
         "file_size": info.size,
+        "raw": info.raw if include_raw else None,
     }
 
 
@@ -61,7 +63,7 @@ class Adapter(object):
 
 
 class VuefinderApp(object):
-    def __init__(self, enable_cors: bool = False):
+    def __init__(self, enable_cors: bool = False, include_raw=False):
         self.endpoints = {
             "GET:index": self._index,
             "GET:preview": self._preview,
@@ -82,6 +84,7 @@ class VuefinderApp(object):
         self._default: Union[Adapter, None] = None
         self._adapters: dict[str, FS] = OrderedDict()
         self.enable_cors = enable_cors
+        self.include_raw = include_raw
 
     def add_fs(self, key: str, fs: FS):
         self._adapters[key] = fs
@@ -130,7 +133,8 @@ class VuefinderApp(object):
                 "storages": self._get_storages(),
                 "dirname": self._get_full_path(request),
                 "files": [
-                    to_vuefinder_resource(adapter.key, path, info) for info in infos
+                    to_vuefinder_resource(adapter.key, path, info, self.include_raw)
+                    for info in infos
                 ],
             }
         )

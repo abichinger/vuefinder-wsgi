@@ -18,7 +18,7 @@ if __name__ == "__main__":
         },
     )
 
-    app = VuefinderApp(enable_cors=True)
+    app = VuefinderApp(enable_cors=True, include_raw=True)
     app.add_fs("local", m1)
     app.add_fs("media", WrapReadOnly(OSFS("./tests/media")))
     app.add_fs("media-rw", OSFS("./tests/media"))
