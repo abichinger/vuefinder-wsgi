@@ -5,7 +5,7 @@ from fs.base import FS
 from fs.info import Info
 from fs.subfs import SubFS
 from fs.zipfs import ZipFS
-from fs import path as fspath, errors, copy, walk
+from fs import path as fspath, errors, copy, walk, move
 import json
 import mimetypes
 from shutil import copyfileobj
@@ -122,7 +122,7 @@ class VuefinderApp(object):
     def _get_full_path(self, request: Request) -> str:
         return request.args.get("path", self._get_adapter(request).key + "://")
 
-    def _fs_path(self, path: str) -> str:
+    def _abspath(self, path: str) -> str:
         if ":/" in path:
             return fspath.abspath(path.split(":/")[1])
         return fspath.abspath(path)
@@ -130,7 +130,15 @@ class VuefinderApp(object):
     def delegate(self, request: Request) -> tuple[FS, str]:
         adapter = self._get_adapter(request)
         path = self._get_full_path(request)
-        return adapter.fs, self._fs_path(path)
+        return adapter.fs, self._abspath(path)
+
+    def _split_path(self, path: str, fallback_fs: FS = None) -> tuple[FS, str]:
+        """Splits the full path into filesystem and absolute path"""
+        fallback_fs = fallback_fs or self._default.fs
+        if ":/" not in path:
+            return fallback_fs, self._abspath(path)
+        key = path.split(":/")[0]
+        return self._adapters.get(key, None) or fallback_fs, self._abspath(path)
 
     def _index(self, request: Request, filter: Union[str, None] = None) -> Response:
         adapter = self._get_adapter(request)
@@ -222,7 +230,8 @@ class VuefinderApp(object):
     def _newfile(self, request: Request) -> Response:
         fs, path = self.delegate(request)
         name = request.get_json().get("name", "")
-        fs.writetext(fspath.join(path, name), "")
+        with fs.openbin(fspath.join(path, name), "wb"):
+            pass
         return self._index(request)
 
     def _rename(self, request: Request) -> Response:
@@ -233,28 +242,25 @@ class VuefinderApp(object):
         )
         return self._index(request)
 
-    def __move(self, fs, src, dst):
-        src = self._fs_path(src)
-        dst = self._fs_path(dst)
-        if fs.isdir(src):
-            fs.movedir(src, dst, create=True)
-        else:
-            fs.move(src, dst)
-
     def _move(self, request: Request) -> Response:
         fs, _ = self.delegate(request)
         payload = request.get_json()
-        dst_dir = payload.get("item", "")
+        dst_fs, dst_dir = self._split_path(payload.get("item", ""), fs)
         for item in payload.get("items", []):
-            src = item["path"]
-            self.__move(fs, src, fspath.combine(dst_dir, fspath.basename(src)))
+            src_fs, src_path = self._split_path(item["path"], fs)
+            dst_path = fspath.combine(dst_dir, fspath.basename(src_path))
+            if src_fs.isdir(src_path):
+                move.move_dir(src_fs, src_path, dst_fs, dst_path)
+            else:
+                move.move_file(src_fs, src_path, dst_fs, dst_path)
+
         return self._index(request)
 
     def _delete(self, request: Request) -> Response:
         fs, path = self.delegate(request)
         payload = request.get_json()
         for item in payload.get("items", []):
-            path = self._fs_path(item["path"])
+            path = self._abspath(item["path"])
             if fs.isdir(path):
                 fs.removetree(path)
             else:
@@ -301,7 +307,7 @@ class VuefinderApp(object):
 
         fs, path = self.delegate(request)
         items: list[dict] = payload.get("items", [])
-        paths = [self._fs_path(item["path"]) for item in items if "path" in item]
+        paths = [self._abspath(item["path"]) for item in items if "path" in item]
         archive_path = fspath.join(path, name)
 
         if fs.exists(archive_path):
@@ -318,7 +324,7 @@ class VuefinderApp(object):
 
         fs, path = self.delegate(request)
         paths: list[str] = json.loads(request.args.get("paths", "[]"))
-        paths = [self._fs_path(path) for path in paths]
+        paths = [self._abspath(path) for path in paths]
 
         stream = io.BytesIO()
 
@@ -337,7 +343,7 @@ class VuefinderApp(object):
 
     def _unarchive(self, request: Request) -> Response:
         fs, path = self.delegate(request)
-        archive_path = self._fs_path(request.get_json().get("item"))
+        archive_path = self._abspath(request.get_json().get("item"))
 
         with fs.openbin(archive_path) as zip_file:
             with ZipFS(zip_file) as zip:

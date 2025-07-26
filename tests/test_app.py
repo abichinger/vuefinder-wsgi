@@ -10,6 +10,7 @@ from unittest.mock import Mock
 def create_test_app() -> VuefinderApp:
     app = VuefinderApp()
     m1 = MemoryFS()
+    m2 = MemoryFS()
     fill_fs(
         m1,
         {
@@ -22,6 +23,7 @@ def create_test_app() -> VuefinderApp:
         },
     )
     app.add_fs("m1", m1)
+    app.add_fs("m2", m2)
     return app
 
 
@@ -71,3 +73,25 @@ class TestApp(unittest.TestCase):
 
         for res in results:
             self.assertEqual(res, 200)
+
+    def test_move(self):
+        app = create_test_app()
+        m1 = app._adapters["m1"]
+        m2 = app._adapters["m2"]
+
+        params = {"q": "move", "adapter": "m1", "path": "m1://foo"}
+        request = get_request(
+            "/?" + urllib.parse.urlencode(params),
+            method="POST",
+            json={
+                "item": "m2://",
+                "items": [
+                    {"path": "m1://foo/foo.txt", "type": "file"},
+                    {"path": "m1://foo/bar", "type": "dir"},
+                ],
+            },
+        )
+
+        app.dispatch_request(request)
+        self.assertListEqual(sorted(m1.listdir("/foo")), ["file.txt"])
+        self.assertListEqual(sorted(m2.listdir("/")), ["bar", "foo.txt"])
