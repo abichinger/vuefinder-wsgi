@@ -113,10 +113,11 @@ class VuefinderApp(object):
 
     def _get_adapter(self, request: Request) -> Adapter:
         key = request.args.get("adapter")
-        return Adapter(key, self._adapters.get(key, self._default.fs))
-
-    def _get_storages(self):
-        return list(self._adapters.keys())
+        return (
+            Adapter(key, self._adapters[key])
+            if key in self._adapters
+            else self._default
+        )
 
     def _get_full_path(self, request: Request) -> str:
         return request.args.get("path", self._get_adapter(request).key + "://")
