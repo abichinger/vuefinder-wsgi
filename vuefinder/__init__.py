@@ -12,6 +12,7 @@ from shutil import copyfileobj
 from collections import OrderedDict
 from pathvalidate import is_valid_filename
 import io
+from typing import Callable
 
 
 def fill_fs(fs: FS, d: dict):
@@ -56,6 +57,13 @@ def to_vuefinder_resource(
     }
 
 
+def fs_type(fs: FS) -> str:
+    unwrapped = fs
+    while hasattr(unwrapped, "_wrap_fs"):
+        unwrapped = unwrapped._wrap_fs
+    return f"{unwrapped.__class__.__module__}.{unwrapped.__class__.__qualname__}"
+
+
 class Adapter(object):
     def __init__(self, key: str, fs: FS):
         self.key = key
@@ -63,7 +71,12 @@ class Adapter(object):
 
 
 class VuefinderApp(object):
-    def __init__(self, enable_cors: bool = False, include_raw=False):
+    def __init__(
+        self,
+        enable_cors: bool = False,
+        include_raw=False,
+        fs_type: Callable[[FS], str] | None = None,
+    ):
         self.endpoints = {
             "GET:index": self._index,
             "GET:preview": self._preview,
@@ -85,6 +98,7 @@ class VuefinderApp(object):
         self._adapters: dict[str, FS] = OrderedDict()
         self.enable_cors = enable_cors
         self.include_raw = include_raw
+        self.fs_type = fs_type
 
     def add_fs(self, key: str, fs: FS):
         self._adapters[key] = fs
@@ -130,7 +144,13 @@ class VuefinderApp(object):
         return json_response(
             {
                 "adapter": adapter.key,
-                "storages": self._get_storages(),
+                "storages": list(self._adapters.keys()),
+                "storage_info": {
+                    name: {
+                        "filesystem": self.fs_type(fs) if self.fs_type else fs_type(fs)
+                    }
+                    for name, fs in self._adapters.items()
+                },
                 "dirname": self._get_full_path(request),
                 "files": [
                     to_vuefinder_resource(adapter.key, path, info, self.include_raw)
