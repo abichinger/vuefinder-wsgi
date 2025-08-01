@@ -397,7 +397,7 @@ class VuefinderApp(object):
         response = None
         try:
             response = self.endpoints[endpoint](request)
-        except errors.ResourceReadOnly as exc:
+        except errors.FSError as exc:
             response = json_response({"message": str(exc), "status": False}, 400)
         except BadRequest as exc:
             response = json_response({"message": exc.description, "status": False}, 400)
