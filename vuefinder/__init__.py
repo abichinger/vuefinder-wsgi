@@ -88,6 +88,7 @@ class VuefinderApp(object):
             "POST:newfile": self._newfile,
             "POST:rename": self._rename,
             "POST:move": self._move,
+            "POST:copy": self._copy,
             "POST:delete": self._delete,
             "POST:upload": self._upload,
             "POST:archive": self._archive,
@@ -242,19 +243,28 @@ class VuefinderApp(object):
         )
         return self._index(request)
 
-    def _move(self, request: Request) -> Response:
+    def _transfer(
+        self, request: Request, transfer_dir: Callable, transfer_file: Callable
+    ) -> Response:
         fs, _ = self.delegate(request)
         payload = request.get_json()
         dst_fs, dst_dir = self._split_path(payload.get("item", ""), fs)
         for item in payload.get("items", []):
             src_fs, src_path = self._split_path(item["path"], fs)
             dst_path = fspath.combine(dst_dir, fspath.basename(src_path))
+
             if src_fs.isdir(src_path):
-                move.move_dir(src_fs, src_path, dst_fs, dst_path)
+                transfer_dir(src_fs, src_path, dst_fs, dst_path)
             else:
-                move.move_file(src_fs, src_path, dst_fs, dst_path)
+                transfer_file(src_fs, src_path, dst_fs, dst_path)
 
         return self._index(request)
+
+    def _move(self, request: Request) -> Response:
+        return self._transfer(request, move.move_dir, move.move_file)
+
+    def _copy(self, request: Request) -> Response:
+        return self._transfer(request, copy.copy_dir, copy.copy_file)
 
     def _delete(self, request: Request) -> Response:
         fs, path = self.delegate(request)

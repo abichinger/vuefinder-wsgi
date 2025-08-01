@@ -4,7 +4,6 @@ from vuefinder import VuefinderApp, fill_fs
 from fs.memoryfs import MemoryFS
 import urllib.parse
 import concurrent.futures
-from unittest.mock import Mock
 
 
 def create_test_app() -> VuefinderApp:
@@ -94,4 +93,26 @@ class TestApp(unittest.TestCase):
 
         app.dispatch_request(request)
         self.assertListEqual(sorted(m1.listdir("/foo")), ["file.txt"])
+        self.assertListEqual(sorted(m2.listdir("/")), ["bar", "foo.txt"])
+
+    def test_copy(self):
+        app = create_test_app()
+        m1 = app._adapters["m1"]
+        m2 = app._adapters["m2"]
+
+        params = {"q": "copy", "adapter": "m1", "path": "m1://foo"}
+        request = get_request(
+            "/?" + urllib.parse.urlencode(params),
+            method="POST",
+            json={
+                "item": "m2://",
+                "items": [
+                    {"path": "m1://foo/foo.txt", "type": "file"},
+                    {"path": "m1://foo/bar", "type": "dir"},
+                ],
+            },
+        )
+
+        app.dispatch_request(request)
+        self.assertListEqual(sorted(m1.listdir("/foo")), ["bar", "file.txt", "foo.txt"])
         self.assertListEqual(sorted(m2.listdir("/")), ["bar", "foo.txt"])
