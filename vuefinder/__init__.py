@@ -238,9 +238,12 @@ class VuefinderApp(object):
     def _rename(self, request: Request) -> Response:
         fs, path = self.delegate(request)
         payload = request.get_json()
-        self.__move(
-            fs, payload.get("item", ""), fspath.join(path, payload.get("name", ""))
-        )
+        src = self._abspath(payload.get("item", ""))
+        dst = self._abspath(fspath.join(path, payload.get("name", "")))
+        if fs.isdir(src):
+            fs.movedir(src, dst, create=True)
+        else:
+            fs.move(src, dst)
         return self._index(request)
 
     def _transfer(

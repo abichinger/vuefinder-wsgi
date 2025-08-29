@@ -116,3 +116,34 @@ class TestApp(unittest.TestCase):
         app.dispatch_request(request)
         self.assertListEqual(sorted(m1.listdir("/foo")), ["bar", "file.txt", "foo.txt"])
         self.assertListEqual(sorted(m2.listdir("/")), ["bar", "foo.txt"])
+
+    def test_rename(self):
+        app = create_test_app()
+        m1 = app._adapters["m1"]
+
+        # rename file
+        params = {"q": "rename", "adapter": "m1", "path": "m1://foo"}
+        request = get_request(
+            "/?" + urllib.parse.urlencode(params),
+            method="POST",
+            json={
+                "item": "m1://foo/file.txt",
+                "name": "myfile.txt",
+            },
+        )
+        app.dispatch_request(request)
+
+        # rename dir
+        params = {"q": "rename", "adapter": "m1", "path": "m1://foo"}
+        request = get_request(
+            "/?" + urllib.parse.urlencode(params),
+            method="POST",
+            json={
+                "item": "m1://foo/bar",
+                "name": "mybar",
+            },
+        )
+        app.dispatch_request(request)
+
+        self.assertTrue(m1.exists("/foo/myfile.txt"))
+        self.assertTrue(m1.exists("/foo/mybar"))
