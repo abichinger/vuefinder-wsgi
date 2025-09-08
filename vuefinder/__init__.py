@@ -147,7 +147,7 @@ class VuefinderApp(object):
         infos = list(fs.scandir(path, namespaces=["basic", "details"]))
 
         if filter:
-            infos = [info for info in infos if filter in info.name]
+            infos = [info for info in infos if filter.lower() in info.name.lower()]
 
         infos.sort(key=lambda i: ("0_" if i.is_dir else "1_") + i.name.lower())
 

@@ -147,3 +147,15 @@ class TestApp(unittest.TestCase):
 
         self.assertTrue(m1.exists("/foo/myfile.txt"))
         self.assertTrue(m1.exists("/foo/mybar"))
+
+    def test_search(self):
+        app = create_test_app()
+        client = Client(app)
+
+        params = {"q": "search", "adapter": "m1", "path": "m1://", "filter": "BAR"}
+        resp = client.get("/?" + urllib.parse.urlencode(params))
+
+        self.assertEqual(resp.status_code, 200)
+
+        files = [f["basename"] for f in resp.json["files"]]
+        self.assertListEqual(files, ["foobar"])
