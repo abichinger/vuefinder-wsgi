@@ -231,8 +231,13 @@ class VuefinderApp(object):
     def _newfile(self, request: Request) -> Response:
         fs, path = self.delegate(request)
         name = request.get_json().get("name", "")
+
+        openbin_kwargs = {}
         mimetype = request.args.get("mimetype", None)
-        with fs.openbin(fspath.join(path, name), "wb", mimetype=mimetype):
+        if mimetype:
+            openbin_kwargs["mimetype"] = mimetype
+
+        with fs.openbin(fspath.join(path, name), "wb", **openbin_kwargs):
             pass
         return self._index(request)
 
